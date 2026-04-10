@@ -84,9 +84,12 @@ let stops = [];
 let index = 0;
 let state = 0;
 
-/* 🔥 CHURAFONT++ COMPLET */
-const font = {
+/* gestion heure */
+let isShowingTime = false;
+let timeLoops = 0;
 
+/* POLICE COMPLETE */
+const font = {
 "A":["01110","10001","10001","11111","10001","10001","10001","00000","00000","00000"],
 "B":["11110","10001","11110","10001","10001","11110","00000","00000","00000","00000"],
 "C":["01110","10001","10000","10000","10001","01110","00000","00000","00000","00000"],
@@ -129,12 +132,10 @@ const font = {
 " ":["00000","00000","00000","00000","00000","00000","00000","00000","00000","00000"]
 };
 
-/* format */
 function formatText(t){
     return t.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase();
 }
 
-/* render */
 function renderText(text){
     screen.innerHTML="";
     let t=formatText(text);
@@ -167,10 +168,28 @@ function renderText(text){
     }
 }
 
-/* défilement */
+/* défilement boucle parfaite */
 let offset=0;
+
 function loop(){
-    offset-=speed;
+    offset -= speed;
+
+    let textWidth = screen.scrollWidth;
+
+    if(offset < -textWidth){
+
+        if(isShowingTime){
+            timeLoops++;
+
+            if(timeLoops >= 2){
+                isShowingTime = false;
+                show();
+            }
+        }
+
+        offset = screen.parentElement.offsetWidth;
+    }
+
     screen.style.transform="translateX("+offset+"px)";
     requestAnimationFrame(loop);
 }
@@ -180,7 +199,7 @@ function updateText(t){
     offset=screen.parentElement.offsetWidth;
 }
 
-/* logique */
+/* logique bus */
 function show(){
     if(stops.length===0)return;
     let stop=stops[index];
@@ -217,8 +236,16 @@ function sizeDown(){if(size>2)size--;document.getElementById("sizeDisplay").inne
 /* heure */
 function showTime(){
     let now=new Date();
-    updateText(now.toLocaleString("fr-FR"));
-    setTimeout(show,5000);
+
+    let t =
+        now.toLocaleDateString("fr-FR") +
+        " " +
+        now.toLocaleTimeString("fr-FR");
+
+    isShowingTime = true;
+    timeLoops = 0;
+
+    updateText("INFO : " + t);
 }
 
 setInterval(showTime,120000);

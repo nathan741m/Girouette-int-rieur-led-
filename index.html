@@ -13,13 +13,43 @@ body {
     align-items: center;
 }
 
-/* écran type panneau bus */
-canvas {
+/* panneau */
+#screen {
     width: 95%;
     height: 150px;
     margin-top: 40px;
     background: black;
+    overflow: hidden;
     border: 2px solid #111;
+    position: relative;
+}
+
+/* fond LED (grille) */
+#screen::before {
+    content: "";
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(#003300 1px, black 1px);
+    background-size: 6px 6px;
+}
+
+/* texte */
+#text {
+    position: absolute;
+    white-space: nowrap;
+    font-size: 80px;
+    color: #00ff6a;
+    text-shadow: 0 0 10px #00ff6a;
+    top: 50%;
+    transform: translateY(-50%);
+    animation: scroll linear infinite;
+}
+
+/* défilement */
+@keyframes scroll {
+    from { left: 100%; }
+    to { left: -100%; }
 }
 
 /* contrôles */
@@ -40,38 +70,23 @@ button, input {
 
 <body>
 
-<canvas id="led"></canvas>
+<div id="screen">
+    <div id="text">AJOUTE DES ARRETS</div>
+</div>
 
 <div id="controls">
     <input id="stopInput" placeholder="Ajouter arrêt">
     <button onclick="addStop()">+</button>
-    <button onclick="start()">Démarrer</button><br>
+    <button onclick="start()">Start</button><br>
     <button onclick="prev()">⬅️</button>
     <button onclick="next()">➡️</button>
 </div>
 
 <script>
-const canvas = document.getElementById("led");
-const ctx = canvas.getContext("2d");
-
-/* taille réelle (IMPORTANT) */
-canvas.width = 1000;
-canvas.height = 150;
-
-/* config LED */
-const spacing = 6;
-const pixelSize = 3;
-
-/* texte */
-let text = "AJOUTE DES ARRETS";
-let offset = canvas.width;
-
-/* système arrêts */
 let stops = [];
 let index = 0;
 let state = 0;
 
-/* format MAJ + sans accents */
 function formatText(t) {
     return t
         .normalize("NFD")
@@ -79,46 +94,17 @@ function formatText(t) {
         .toUpperCase();
 }
 
-/* dessin LED */
-function draw() {
-    ctx.fillStyle = "black";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    ctx.fillStyle = "#00ff6a";
-    ctx.font = "bold 80px monospace";
-
-    ctx.fillText(text, offset, 100);
-
-    let img = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    for (let y = 0; y < canvas.height; y += spacing) {
-        for (let x = 0; x < canvas.width; x += spacing) {
-            let i = (y * canvas.width + x) * 4;
-
-            if (img.data[i + 3] > 128) {
-                ctx.fillStyle = "#00ff6a";
-                ctx.fillRect(x, y, pixelSize, pixelSize);
-            }
-        }
-    }
-
-    offset -= 2;
-
-    if (offset < -ctx.measureText(text).width) {
-        offset = canvas.width;
-    }
-
-    requestAnimationFrame(draw);
-}
-
-/* update texte */
 function updateText(t) {
-    text = formatText(t);
-    offset = canvas.width;
+    let el = document.getElementById("text");
+    el.style.animation = "none";
+    el.offsetHeight;
+
+    el.innerText = formatText(t);
+
+    let speed = (el.innerText.length * 0.5);
+    el.style.animation = "scroll " + speed + "s linear infinite";
 }
 
-/* affichage */
 function show() {
     if (stops.length === 0) return;
 
@@ -133,10 +119,7 @@ function show() {
     }
 }
 
-/* navigation */
 function next() {
-    if (stops.length === 0) return;
-
     if (state === 0) {
         state = 1;
     } else {
@@ -149,8 +132,6 @@ function next() {
 }
 
 function prev() {
-    if (stops.length === 0) return;
-
     if (state === 1) {
         state = 0;
     } else {
@@ -162,17 +143,14 @@ function prev() {
     show();
 }
 
-/* ajouter arrêt */
 function addStop() {
     let val = document.getElementById("stopInput").value;
-
     if (val.trim() !== "") {
         stops.push(val);
         document.getElementById("stopInput").value = "";
     }
 }
 
-/* démarrer */
 function start() {
     if (stops.length > 0) {
         index = 0;
@@ -181,7 +159,7 @@ function start() {
     }
 }
 
-/* affichage heure */
+/* heure */
 function showTime() {
     let now = new Date();
 
@@ -195,11 +173,7 @@ function showTime() {
     setTimeout(show, 6000);
 }
 
-/* toutes les 2 minutes */
 setInterval(showTime, 120000);
-
-/* lancer animation */
-draw();
 </script>
 
 </body>

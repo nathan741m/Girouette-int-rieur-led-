@@ -2,29 +2,47 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Girouette Bus LED</title>
+<title>Girouette LED</title>
 
 <style>
 body {
     margin: 0;
     background: black;
-    font-family: Arial;
-    color: #00ff6a;
     overflow: hidden;
 }
 
-/* Écran LED */
+/* écran LED */
 #screen {
-    height: 80vh;
+    width: 100%;
+    height: 100vh;
     display: flex;
-    justify-content: center;
     align-items: center;
-    font-size: 3vw;
-    text-align: center;
-    text-shadow: 0 0 10px #00ff6a;
+    overflow: hidden;
+    background: radial-gradient(#003300 1px, black 1px);
+    background-size: 6px 6px; /* effet LED */
 }
 
-/* Barres boutons */
+/* texte qui défile */
+#text {
+    white-space: nowrap;
+    font-size: 8vw;
+    color: #00ff6a;
+    text-shadow: 0 0 10px #00ff6a;
+    position: absolute;
+    animation: scroll 10s linear infinite;
+}
+
+/* animation défilement */
+@keyframes scroll {
+    from {
+        transform: translateX(100%);
+    }
+    to {
+        transform: translateX(-100%);
+    }
+}
+
+/* boutons */
 #controls {
     position: absolute;
     bottom: 20px;
@@ -35,32 +53,25 @@ body {
 }
 
 button {
-    background: black;
-    border: 2px solid #00ff6a;
-    color: #00ff6a;
     font-size: 25px;
+    background: black;
+    color: #00ff6a;
+    border: 2px solid #00ff6a;
     padding: 10px 20px;
     cursor: pointer;
 }
 
-button:hover {
-    background: #00ff6a;
-    color: black;
-}
-
-/* panneau paramètres */
+/* panel */
 #panel {
     position: absolute;
     top: 10px;
     left: 10px;
-    background: rgba(0,0,0,0.8);
-    border: 1px solid #00ff6a;
-    padding: 10px;
 }
+
 input {
     background: black;
-    border: 1px solid #00ff6a;
     color: #00ff6a;
+    border: 1px solid #00ff6a;
 }
 </style>
 </head>
@@ -70,10 +81,12 @@ input {
 <div id="panel">
     <input id="stopInput" placeholder="Ajouter arrêt">
     <button onclick="addStop()">+</button>
-    <button onclick="start()">Démarrer</button>
+    <button onclick="start()">Start</button>
 </div>
 
-<div id="screen">Ajoute des arrêts ⚙️</div>
+<div id="screen">
+    <div id="text">Ajoute des arrêts ⚙️</div>
+</div>
 
 <div id="controls">
     <button onclick="prev()">⬅️</button>
@@ -83,8 +96,7 @@ input {
 <script>
 let stops = [];
 let index = 0;
-let state = 0; // 0 = prochain arrêt, 1 = arrêt
-let lastMode = "bus";
+let state = 0;
 
 // ajouter arrêt
 function addStop() {
@@ -97,37 +109,39 @@ function addStop() {
 
 // démarrer
 function start() {
-    if (stops.length > 0) {
-        index = 0;
-        state = 0;
-        show();
-    }
+    index = 0;
+    state = 0;
+    show();
 }
 
-// affichage bus
+// affichage texte
 function show() {
-    if (stops.length === 0) return;
+    let txt = "";
 
     let stop = stops[index];
 
     if (index === stops.length - 1 && state === 1) {
-        document.getElementById("screen").innerText = "TERMINUS : " + stop;
-        return;
+        txt = "TERMINUS : " + stop;
+    } else if (state === 0) {
+        txt = "PROCHAIN ARRÊT : " + stop;
+    } else {
+        txt = "ARRÊT : " + stop;
     }
 
-    if (state === 0) {
-        document.getElementById("screen").innerText =
-            "PROCHAIN ARRÊT : " + stop;
-    } else {
-        document.getElementById("screen").innerText =
-            "ARRÊT : " + stop;
-    }
+    updateText(txt);
 }
 
-// bouton suivant
-function next() {
-    if (stops.length === 0) return;
+// update avec reset animation
+function updateText(t) {
+    let el = document.getElementById("text");
+    el.style.animation = "none";
+    el.offsetHeight; // reset animation
+    el.innerText = t;
+    el.style.animation = "scroll 10s linear infinite";
+}
 
+// suivant
+function next() {
     if (state === 0) {
         state = 1;
     } else {
@@ -139,10 +153,8 @@ function next() {
     show();
 }
 
-// bouton précédent
+// précédent
 function prev() {
-    if (stops.length === 0) return;
-
     if (state === 1) {
         state = 0;
     } else {
@@ -154,18 +166,17 @@ function prev() {
     show();
 }
 
-/* ⏰ affichage date/heure toutes les 2 minutes */
+/* ⏰ date/heure toutes les 2 min */
 function showTime() {
     let now = new Date();
-    let txt =
-        "📅 " + now.toLocaleDateString("fr-FR") +
-        " " + now.toLocaleTimeString("fr-FR");
+    let txt = "INFO : " +
+        now.toLocaleDateString("fr-FR") +
+        " " +
+        now.toLocaleTimeString("fr-FR");
 
-    document.getElementById("screen").innerText = txt;
+    updateText(txt);
 
-    setTimeout(() => {
-        show();
-    }, 5000); // revient au bus après 5 sec
+    setTimeout(show, 6000);
 }
 
 setInterval(showTime, 120000);

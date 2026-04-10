@@ -2,145 +2,131 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Girouette LED</title>
+<title>Girouette LED Bus</title>
 
 <style>
 body {
     margin: 0;
     background: black;
-    overflow: hidden;
-}
-
-/* écran LED */
-#screen {
-    width: 100%;
-    height: 100vh;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    overflow: hidden;
-    background: radial-gradient(#003300 1px, black 1px);
-    background-size: 6px 6px; /* effet LED */
 }
 
-/* texte qui défile */
-#text {
-    white-space: nowrap;
-    font-size: 8vw;
-    color: #00ff6a;
-    text-shadow: 0 0 10px #00ff6a;
-    position: absolute;
-    animation: scroll 10s linear infinite;
-}
-
-/* animation défilement */
-@keyframes scroll {
-    from {
-        transform: translateX(100%);
-    }
-    to {
-        transform: translateX(-100%);
-    }
-}
-
-/* boutons */
-#controls {
-    position: absolute;
-    bottom: 20px;
+/* canvas plein écran */
+canvas {
     width: 100%;
-    display: flex;
-    justify-content: center;
-    gap: 20px;
+    height: 80vh;
+    background: black;
+    image-rendering: pixelated;
+}
+
+/* contrôles */
+#controls {
+    margin-top: 10px;
 }
 
 button {
     font-size: 25px;
+    margin: 5px;
+    padding: 10px;
     background: black;
     color: #00ff6a;
     border: 2px solid #00ff6a;
-    padding: 10px 20px;
     cursor: pointer;
-}
-
-/* panel */
-#panel {
-    position: absolute;
-    top: 10px;
-    left: 10px;
-}
-
-input {
-    background: black;
-    color: #00ff6a;
-    border: 1px solid #00ff6a;
 }
 </style>
 </head>
 
 <body>
 
-<div id="panel">
-    <input id="stopInput" placeholder="Ajouter arrêt">
-    <button onclick="addStop()">+</button>
-    <button onclick="start()">Start</button>
-</div>
-
-<div id="screen">
-    <div id="text">Ajoute des arrêts ⚙️</div>
-</div>
+<canvas id="led"></canvas>
 
 <div id="controls">
+    <input id="stopInput" placeholder="Ajouter arrêt">
+    <button onclick="addStop()">+</button>
+    <button onclick="start()">Start</button><br>
     <button onclick="prev()">⬅️</button>
     <button onclick="next()">➡️</button>
 </div>
 
 <script>
+const canvas = document.getElementById("led");
+const ctx = canvas.getContext("2d");
+
+canvas.width = 1000;
+canvas.height = 200;
+
+/* grille LED */
+const dotSize = 6;
+const spacing = 4;
+
+/* texte */
+let text = "AJOUTE DES ARRETS";
+let offset = canvas.width;
+
+/* système arrêts */
 let stops = [];
 let index = 0;
 let state = 0;
 
-// ajouter arrêt
-function addStop() {
-    let val = document.getElementById("stopInput").value;
-    if (val) {
-        stops.push(val);
-        document.getElementById("stopInput").value = "";
+/* dessin LED */
+function draw() {
+    ctx.fillStyle = "black";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.font = "bold 80px monospace";
+    ctx.fillStyle = "#00ff6a";
+
+    // dessiner texte
+    ctx.fillText(text, offset, 120);
+
+    // effet LED : découpe en points
+    let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    for (let y = 0; y < canvas.height; y += spacing) {
+        for (let x = 0; x < canvas.width; x += spacing) {
+            let i = (y * canvas.width + x) * 4;
+            let alpha = imageData.data[i + 3];
+
+            if (alpha > 128) {
+                ctx.beginPath();
+                ctx.arc(x, y, dotSize / 2, 0, Math.PI * 2);
+                ctx.fillStyle = "#00ff6a";
+                ctx.fill();
+            }
+        }
     }
+
+    offset -= 2;
+
+    if (offset < -ctx.measureText(text).width) {
+        offset = canvas.width;
+    }
+
+    requestAnimationFrame(draw);
 }
 
-// démarrer
-function start() {
-    index = 0;
-    state = 0;
-    show();
+/* update texte */
+function updateText(t) {
+    text = t.toUpperCase();
+    offset = canvas.width;
 }
 
-// affichage texte
+/* logique arrêts */
 function show() {
-    let txt = "";
-
     let stop = stops[index];
 
     if (index === stops.length - 1 && state === 1) {
-        txt = "TERMINUS : " + stop;
+        updateText("TERMINUS : " + stop);
     } else if (state === 0) {
-        txt = "PROCHAIN ARRÊT : " + stop;
+        updateText("PROCHAIN ARRET : " + stop);
     } else {
-        txt = "ARRÊT : " + stop;
+        updateText("ARRET : " + stop);
     }
-
-    updateText(txt);
 }
 
-// update avec reset animation
-function updateText(t) {
-    let el = document.getElementById("text");
-    el.style.animation = "none";
-    el.offsetHeight; // reset animation
-    el.innerText = t;
-    el.style.animation = "scroll 10s linear infinite";
-}
-
-// suivant
 function next() {
     if (state === 0) {
         state = 1;
@@ -153,7 +139,6 @@ function next() {
     show();
 }
 
-// précédent
 function prev() {
     if (state === 1) {
         state = 0;
@@ -166,20 +151,35 @@ function prev() {
     show();
 }
 
-/* ⏰ date/heure toutes les 2 min */
+function addStop() {
+    let val = document.getElementById("stopInput").value;
+    if (val) {
+        stops.push(val);
+        document.getElementById("stopInput").value = "";
+    }
+}
+
+function start() {
+    if (stops.length > 0) {
+        index = 0;
+        state = 0;
+        show();
+    }
+}
+
+/* affichage heure */
 function showTime() {
     let now = new Date();
-    let txt = "INFO : " +
-        now.toLocaleDateString("fr-FR") +
-        " " +
-        now.toLocaleTimeString("fr-FR");
-
-    updateText(txt);
+    let t = now.toLocaleDateString("fr-FR") + " " +
+            now.toLocaleTimeString("fr-FR");
+    updateText(t);
 
     setTimeout(show, 6000);
 }
 
 setInterval(showTime, 120000);
+
+draw();
 </script>
 
 </body>

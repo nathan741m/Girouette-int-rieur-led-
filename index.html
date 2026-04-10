@@ -14,59 +14,20 @@ body {
     color: #00ff6a;
 }
 
-/* ===== ÉCRAN ===== */
 #screenWrapper {
     width: 95%;
     height: 160px;
+    overflow: hidden;
     margin-top: 40px;
     position: relative;
-    overflow: hidden;
-    background: black;
 }
 
-/* 🔥 FOND LED FIXE (NE BOUGE PAS) */
-#ledBackground {
-    position: absolute;
-    inset: 0;
-    display: grid;
-    grid-template-rows: repeat(10, 1fr);
-    z-index: 0;
-    opacity: 0.15;
-}
-
-.row {
-    display: flex;
-}
-
-.bgDot {
-    width: 8px;
-    height: 8px;
-    margin: 1px;
-    border-radius: 50%;
-    background: #00ff6a;
-}
-
-/* 🔥 TEXTE (SEUL QUI BOUGE) */
 #screen {
     position: absolute;
-    top: 0;
-    left: 0;
-    display: flex;
-    flex-direction: column;
-    z-index: 2;
-    will-change: transform;
 }
 
-.line {
-    display: flex;
-    white-space: nowrap;
-}
-
-/* LED texte */
+/* LED */
 .led {
-    width: 6px;
-    height: 6px;
-    margin: 1px;
     border-radius: 50%;
     background: #002200;
 }
@@ -76,7 +37,6 @@ body {
     box-shadow: 0 0 6px #00ff6a;
 }
 
-/* controls */
 #controls {
     margin-top: 20px;
 }
@@ -94,22 +54,39 @@ button, input {
 <body>
 
 <div id="screenWrapper">
-    <div id="ledBackground"></div>
     <div id="screen"></div>
 </div>
 
 <div id="controls">
     <input id="stopInput" placeholder="Ajouter arrêt">
     <button onclick="addStop()">+</button>
-    <button onclick="start()">Start</button>
+    <button onclick="start()">Start</button><br>
+
+    <button onclick="prev()">⬅️</button>
+    <button onclick="next()">➡️</button><br>
+
+    <button onclick="speedDown()">➖</button>
+    <span id="speedDisplay">Vitesse: 2</span>
+    <button onclick="speedUp()">➕</button><br>
+
+    <button onclick="sizeDown()">🔍➖</button>
+    <span id="sizeDisplay">Taille: 4</span>
+    <button onclick="sizeUp()">🔍➕</button>
 </div>
 
 <script>
 const screen = document.getElementById("screen");
-const bg = document.getElementById("ledBackground");
 
-/* ===== FONT ===== */
+let speed = 2;
+let size = 4;
+
+let stops = [];
+let index = 0;
+let state = 0;
+
+/* 🔥 CHURAFONT++ COMPLET */
 const font = {
+
 "A":["01110","10001","10001","11111","10001","10001","10001","00000","00000","00000"],
 "B":["11110","10001","11110","10001","10001","11110","00000","00000","00000","00000"],
 "C":["01110","10001","10000","10000","10001","01110","00000","00000","00000","00000"],
@@ -136,6 +113,7 @@ const font = {
 "X":["10001","01010","00100","01010","10001","10001","00000","00000","00000","00000"],
 "Y":["10001","01010","00100","00100","00100","00100","00000","00000","00000","00000"],
 "Z":["11111","00010","00100","01000","10000","11111","00000","00000","00000","00000"],
+
 "0":["01110","10001","10011","10101","11001","10001","01110","00000","00000","00000"],
 "1":["00100","01100","00100","00100","00100","00100","01110","00000","00000","00000"],
 "2":["01110","10001","00001","00010","00100","01000","11111","00000","00000","00000"],
@@ -146,134 +124,105 @@ const font = {
 "7":["11111","00001","00010","00100","01000","01000","01000","00000","00000","00000"],
 "8":["01110","10001","01110","10001","10001","10001","01110","00000","00000","00000"],
 "9":["01110","10001","10001","01111","00001","00010","01100","00000","00000","00000"],
+
 ":":["00000","00100","00000","00000","00100","00000","00000","00000","00000","00000"],
 " ":["00000","00000","00000","00000","00000","00000","00000","00000","00000","00000"]
 };
 
-/* ===== FOND LED FIXE ===== */
-function createBackground(){
-    bg.innerHTML = "";
-
-    for(let y=0;y<10;y++){
-        let row = document.createElement("div");
-        row.className = "row";
-
-        for(let x=0;x<60;x++){
-            let d = document.createElement("div");
-            d.className = "bgDot";
-            row.appendChild(d);
-        }
-
-        bg.appendChild(row);
-    }
-}
-createBackground();
-
-/* ===== FORMAT ===== */
+/* format */
 function formatText(t){
     return t.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase();
 }
 
-/* ===== RENDER TEXTE ===== */
+/* render */
 function renderText(text){
-    screen.innerHTML = "";
-
-    let t = formatText(text);
+    screen.innerHTML="";
+    let t=formatText(text);
 
     for(let row=0; row<10; row++){
-        let line = document.createElement("div");
-        line.className = "line";
+        let line=document.createElement("div");
+        line.style.display="flex";
 
-        for(let c of t){
-            let p = font[c] || font[" "];
+        for(let char of t){
+            let p=font[char]||font[" "];
 
-            for(let i=0;i<5;i++){
-                let dot = document.createElement("div");
-                dot.className = "led";
+            for(let col=0; col<5; col++){
+                let dot=document.createElement("div");
+                dot.className="led";
+                dot.style.width=size+"px";
+                dot.style.height=size+"px";
+                dot.style.margin="1px";
 
-                if(p[row][i] === "1"){
-                    dot.classList.add("on");
-                }
+                if(p[row][col]==="1") dot.classList.add("on");
 
                 line.appendChild(dot);
             }
 
-            let space = document.createElement("div");
-            space.style.width = "10px";
+            let space=document.createElement("div");
+            space.style.width=size*2+"px";
             line.appendChild(space);
         }
 
         screen.appendChild(line);
     }
-
-    x = screenWrapper.offsetWidth;
-    width = screen.scrollWidth;
 }
 
-/* ===== SCROLL ===== */
-let x = 0;
-let width = 0;
-let speed = 2;
-
+/* défilement */
+let offset=0;
 function loop(){
-    x -= speed;
-
-    if(-x > width){
-        x = screenWrapper.offsetWidth;
-        cycleCount++;
-        if(cycleCount >= 2){
-            cycleCount = 0;
-            showNext();
-        }
-    }
-
-    screen.style.transform = `translateX(${x}px)`;
+    offset-=speed;
+    screen.style.transform="translateX("+offset+"px)";
     requestAnimationFrame(loop);
 }
 
-/* ===== LOGIQUE TEXTE ===== */
-let stops = [];
-let index = 0;
-let cycleCount = 0;
-
-/* INFO : 2 cycles date/heure */
-function showTime(){
-    let now = new Date();
-    let txt = "INFORMATION : " + now.toLocaleString("fr-FR");
-
-    renderText(txt);
-    cycleCount = 0;
+function updateText(t){
+    renderText(t);
+    offset=screen.parentElement.offsetWidth;
 }
 
-/* cycle texte principal */
-function showNext(){
-    if(stops.length === 0){
-        showTime();
-        return;
+/* logique */
+function show(){
+    if(stops.length===0)return;
+    let stop=stops[index];
+
+    if(index===stops.length-1 && state===1){
+        updateText("TERMINUS : "+stop);
+    } else if(state===0){
+        updateText("PROCHAIN ARRET : "+stop);
+    } else {
+        updateText("ARRET : "+stop);
     }
-
-    let stop = stops[index];
-    renderText("PROCHAIN ARRET : " + stop);
-
-    index++;
-    if(index >= stops.length) index = 0;
 }
+
+/* navigation */
+function next(){ state=state===0?1:(index<stops.length-1?(index++,0):1); show(); }
+function prev(){ state=state===1?0:(index>0?(index--,1):0); show(); }
 
 /* ajout */
 function addStop(){
-    let v = document.getElementById("stopInput").value;
-    if(v) stops.push(v);
+    let v=document.getElementById("stopInput").value;
+    if(v){stops.push(v);document.getElementById("stopInput").value="";}
 }
 
-/* start */
-function start(){
-    index = 0;
-    cycleCount = 0;
-    showTime();
+function start(){ index=0; state=0; show(); }
+
+/* vitesse */
+function speedUp(){speed++;document.getElementById("speedDisplay").innerText="Vitesse: "+speed;}
+function speedDown(){if(speed>1)speed--;document.getElementById("speedDisplay").innerText="Vitesse: "+speed;}
+
+/* taille */
+function sizeUp(){size++;document.getElementById("sizeDisplay").innerText="Taille: "+size;show();}
+function sizeDown(){if(size>2)size--;document.getElementById("sizeDisplay").innerText="Taille: "+size;show();}
+
+/* heure */
+function showTime(){
+    let now=new Date();
+    updateText(now.toLocaleString("fr-FR"));
+    setTimeout(show,5000);
 }
 
-/* launch */
-setInterval(showTime, 20000);
+setInterval(showTime,120000);
+
 loop();
 </script>
 

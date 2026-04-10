@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Girouette LED Bus</title>
+<title>Girouette Bus LED</title>
 
 <style>
 body {
@@ -13,27 +13,27 @@ body {
     align-items: center;
 }
 
-/* canvas plein écran */
+/* écran type panneau bus */
 canvas {
-    width: 100%;
-    height: 80vh;
+    width: 95%;
+    height: 150px;
+    margin-top: 40px;
     background: black;
-    image-rendering: pixelated;
+    border: 2px solid #111;
 }
 
 /* contrôles */
 #controls {
-    margin-top: 10px;
+    margin-top: 20px;
 }
 
-button {
-    font-size: 25px;
+button, input {
+    font-size: 18px;
     margin: 5px;
-    padding: 10px;
+    padding: 8px;
     background: black;
     color: #00ff6a;
-    border: 2px solid #00ff6a;
-    cursor: pointer;
+    border: 1px solid #00ff6a;
 }
 </style>
 </head>
@@ -45,7 +45,7 @@ button {
 <div id="controls">
     <input id="stopInput" placeholder="Ajouter arrêt">
     <button onclick="addStop()">+</button>
-    <button onclick="start()">Start</button><br>
+    <button onclick="start()">Démarrer</button><br>
     <button onclick="prev()">⬅️</button>
     <button onclick="next()">➡️</button>
 </div>
@@ -54,12 +54,13 @@ button {
 const canvas = document.getElementById("led");
 const ctx = canvas.getContext("2d");
 
+/* taille réelle (IMPORTANT) */
 canvas.width = 1000;
-canvas.height = 200;
+canvas.height = 150;
 
-/* grille LED */
-const dotSize = 6;
-const spacing = 4;
+/* config LED */
+const spacing = 6;
+const pixelSize = 3;
 
 /* texte */
 let text = "AJOUTE DES ARRETS";
@@ -70,31 +71,34 @@ let stops = [];
 let index = 0;
 let state = 0;
 
+/* format MAJ + sans accents */
+function formatText(t) {
+    return t
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toUpperCase();
+}
+
 /* dessin LED */
 function draw() {
     ctx.fillStyle = "black";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    ctx.font = "bold 80px monospace";
     ctx.fillStyle = "#00ff6a";
+    ctx.font = "bold 80px monospace";
 
-    // dessiner texte
-    ctx.fillText(text, offset, 120);
+    ctx.fillText(text, offset, 100);
 
-    // effet LED : découpe en points
-    let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    let img = ctx.getImageData(0, 0, canvas.width, canvas.height);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     for (let y = 0; y < canvas.height; y += spacing) {
         for (let x = 0; x < canvas.width; x += spacing) {
             let i = (y * canvas.width + x) * 4;
-            let alpha = imageData.data[i + 3];
 
-            if (alpha > 128) {
-                ctx.beginPath();
-                ctx.arc(x, y, dotSize / 2, 0, Math.PI * 2);
+            if (img.data[i + 3] > 128) {
                 ctx.fillStyle = "#00ff6a";
-                ctx.fill();
+                ctx.fillRect(x, y, pixelSize, pixelSize);
             }
         }
     }
@@ -110,12 +114,14 @@ function draw() {
 
 /* update texte */
 function updateText(t) {
-    text = t.toUpperCase();
+    text = formatText(t);
     offset = canvas.width;
 }
 
-/* logique arrêts */
+/* affichage */
 function show() {
+    if (stops.length === 0) return;
+
     let stop = stops[index];
 
     if (index === stops.length - 1 && state === 1) {
@@ -127,7 +133,10 @@ function show() {
     }
 }
 
+/* navigation */
 function next() {
+    if (stops.length === 0) return;
+
     if (state === 0) {
         state = 1;
     } else {
@@ -140,6 +149,8 @@ function next() {
 }
 
 function prev() {
+    if (stops.length === 0) return;
+
     if (state === 1) {
         state = 0;
     } else {
@@ -151,14 +162,17 @@ function prev() {
     show();
 }
 
+/* ajouter arrêt */
 function addStop() {
     let val = document.getElementById("stopInput").value;
-    if (val) {
+
+    if (val.trim() !== "") {
         stops.push(val);
         document.getElementById("stopInput").value = "";
     }
 }
 
+/* démarrer */
 function start() {
     if (stops.length > 0) {
         index = 0;
@@ -170,15 +184,21 @@ function start() {
 /* affichage heure */
 function showTime() {
     let now = new Date();
-    let t = now.toLocaleDateString("fr-FR") + " " +
-            now.toLocaleTimeString("fr-FR");
-    updateText(t);
+
+    let t =
+        now.toLocaleDateString("fr-FR") +
+        " " +
+        now.toLocaleTimeString("fr-FR");
+
+    updateText("INFO : " + t);
 
     setTimeout(show, 6000);
 }
 
+/* toutes les 2 minutes */
 setInterval(showTime, 120000);
 
+/* lancer animation */
 draw();
 </script>
 

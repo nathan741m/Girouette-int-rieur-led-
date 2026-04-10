@@ -20,16 +20,20 @@ body {
     overflow: hidden;
     margin-top: 40px;
     position: relative;
-    white-space: nowrap;
 }
 
 #screen {
     position: absolute;
-    display: inline-block;
+    display: flex;
+    flex-direction: column;
     will-change: transform;
 }
 
-/* LED */
+.line {
+    display: flex;
+    flex-wrap: nowrap;
+}
+
 .led {
     border-radius: 50%;
     background: #002200;
@@ -79,6 +83,7 @@ button, input {
 
 <script>
 const screen = document.getElementById("screen");
+const screenWrapper = document.getElementById("screenWrapper");
 
 let speed = 2;
 let size = 4;
@@ -136,7 +141,7 @@ function formatText(t){
     return t.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase();
 }
 
-/* RENDER FIX */
+/* RENDER STABLE */
 function renderText(text){
     screen.innerHTML = "";
 
@@ -144,7 +149,7 @@ function renderText(text){
 
     for(let row = 0; row < 10; row++){
         let line = document.createElement("div");
-        line.style.display = "flex";
+        line.className = "line";
 
         for(let char of t){
             let p = font[char] || font[" "];
@@ -156,50 +161,53 @@ function renderText(text){
                 dot.style.height = size + "px";
                 dot.style.margin = "1px";
 
-                if(p[row][col] === "1") dot.classList.add("on");
+                if(p[row][col] === "1"){
+                    dot.classList.add("on");
+                }
 
                 line.appendChild(dot);
             }
 
             let space = document.createElement("div");
-            space.style.width = (size * 3) + "px";
+            space.style.width = (size * 2) + "px";
             line.appendChild(space);
         }
 
         screen.appendChild(line);
     }
 
-    calculateWidth();
-    currentOffset = screen.parentElement.offsetWidth;
+    // reset scroll
+    x = screenWrapper.offsetWidth;
+    contentWidth = screen.scrollWidth;
 }
 
-/* SCROLL LOOP FIX */
-let currentOffset = 0;
-let textWidth = 0;
-
-function calculateWidth(){
-    textWidth = screen.scrollWidth;
-}
+/* SCROLL FIX */
+let x = 0;
+let contentWidth = 0;
 
 function loop(){
-    currentOffset -= speed;
+    x -= speed;
 
-    if(Math.abs(currentOffset) > textWidth){
-        currentOffset = screen.parentElement.offsetWidth;
+    if(contentWidth === 0){
+        contentWidth = screen.scrollWidth;
     }
 
-    screen.style.transform = `translateX(${currentOffset}px)`;
+    if(-x > contentWidth){
+        x = screenWrapper.offsetWidth;
+    }
+
+    screen.style.transform = `translateX(${x}px)`;
 
     requestAnimationFrame(loop);
 }
 
-/* UPDATE TEXT */
+/* UPDATE */
 function updateText(t){
     renderText(t);
 
     setTimeout(() => {
-        calculateWidth();
-        currentOffset = screen.parentElement.offsetWidth;
+        contentWidth = screen.scrollWidth;
+        x = screenWrapper.offsetWidth;
     }, 50);
 }
 
@@ -229,7 +237,7 @@ function prev(){
     show();
 }
 
-/* ADD */
+/* ADD STOP */
 function addStop(){
     let v = document.getElementById("stopInput").value;
     if(v){
@@ -268,7 +276,7 @@ function sizeDown(){
     show();
 }
 
-/* TIME DISPLAY */
+/* TIME */
 function showTime(){
     let now = new Date();
     updateText(now.toLocaleString("fr-FR"));
@@ -280,7 +288,7 @@ function showTime(){
 
 setInterval(showTime, 120000);
 
-/* START LOOP */
+/* START */
 loop();
 </script>
 

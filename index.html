@@ -12,29 +12,60 @@ body {
     flex-direction: column;
     align-items: center;
     color: #00ff6a;
+    font-family: Arial;
 }
 
 #screenWrapper {
     width: 95%;
     height: 160px;
-    overflow: hidden;
     margin-top: 40px;
     position: relative;
+    overflow: hidden;
+    background: black;
 }
 
+/* 🔥 FOND LED FIXE */
+#ledBackground {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    grid-template-rows: repeat(10, 1fr);
+    opacity: 0.12;
+    z-index: 0;
+}
+
+.bgRow {
+    display: flex;
+}
+
+.bgDot {
+    width: 8px;
+    height: 8px;
+    margin: 1px;
+    border-radius: 50%;
+    background: #00ff6a;
+}
+
+/* TEXTE QUI BOUGE */
 #screen {
     position: absolute;
+    top: 0;
+    left: 0;
     display: flex;
     flex-direction: column;
+    z-index: 2;
     will-change: transform;
 }
 
 .line {
     display: flex;
-    flex-wrap: nowrap;
+    white-space: nowrap;
 }
 
 .led {
+    width: 6px;
+    height: 6px;
+    margin: 1px;
     border-radius: 50%;
     background: #002200;
 }
@@ -44,6 +75,7 @@ body {
     box-shadow: 0 0 6px #00ff6a;
 }
 
+/* controls */
 #controls {
     margin-top: 20px;
 }
@@ -61,38 +93,21 @@ button, input {
 <body>
 
 <div id="screenWrapper">
+    <div id="ledBackground"></div>
     <div id="screen"></div>
 </div>
 
 <div id="controls">
     <input id="stopInput" placeholder="Ajouter arrêt">
     <button onclick="addStop()">+</button>
-    <button onclick="start()">Start</button><br>
-
-    <button onclick="prev()">⬅️</button>
-    <button onclick="next()">➡️</button><br>
-
-    <button onclick="speedDown()">➖</button>
-    <span id="speedDisplay">Vitesse: 2</span>
-    <button onclick="speedUp()">➕</button><br>
-
-    <button onclick="sizeDown()">🔍➖</button>
-    <span id="sizeDisplay">Taille: 4</span>
-    <button onclick="sizeUp()">🔍➕</button>
+    <button onclick="start()">Start</button>
 </div>
 
 <script>
 const screen = document.getElementById("screen");
-const screenWrapper = document.getElementById("screenWrapper");
+const bg = document.getElementById("ledBackground");
 
-let speed = 2;
-let size = 4;
-
-let stops = [];
-let index = 0;
-let state = 0;
-
-/* FONT LED */
+/* ===== FONT ===== */
 const font = {
 "A":["01110","10001","10001","11111","10001","10001","10001","00000","00000","00000"],
 "B":["11110","10001","11110","10001","10001","11110","00000","00000","00000","00000"],
@@ -136,159 +151,131 @@ const font = {
 " ":["00000","00000","00000","00000","00000","00000","00000","00000","00000","00000"]
 };
 
-/* FORMAT */
+/* ===== FOND FIXE ===== */
+function createBackground(){
+    bg.innerHTML = "";
+    for(let y=0;y<10;y++){
+        let row = document.createElement("div");
+        row.className = "bgRow";
+
+        for(let x=0;x<60;x++){
+            let d = document.createElement("div");
+            d.className = "bgDot";
+            row.appendChild(d);
+        }
+
+        bg.appendChild(row);
+    }
+}
+createBackground();
+
+/* ===== TEXT RENDER ===== */
 function formatText(t){
     return t.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase();
 }
 
-/* RENDER STABLE */
 function renderText(text){
     screen.innerHTML = "";
 
     let t = formatText(text);
 
-    for(let row = 0; row < 10; row++){
+    for(let row=0; row<10; row++){
         let line = document.createElement("div");
         line.className = "line";
 
-        for(let char of t){
-            let p = font[char] || font[" "];
+        for(let c of t){
+            let p = font[c] || font[" "];
 
-            for(let col = 0; col < 5; col++){
+            for(let i=0;i<5;i++){
                 let dot = document.createElement("div");
                 dot.className = "led";
-                dot.style.width = size + "px";
-                dot.style.height = size + "px";
-                dot.style.margin = "1px";
-
-                if(p[row][col] === "1"){
-                    dot.classList.add("on");
-                }
-
+                if(p[row][i] === "1") dot.classList.add("on");
                 line.appendChild(dot);
             }
 
             let space = document.createElement("div");
-            space.style.width = (size * 2) + "px";
+            space.style.width = "10px";
             line.appendChild(space);
         }
 
         screen.appendChild(line);
     }
 
-    // reset scroll
     x = screenWrapper.offsetWidth;
-    contentWidth = screen.scrollWidth;
+    width = screen.scrollWidth;
 }
 
-/* SCROLL FIX */
+/* ===== SCROLL ===== */
 let x = 0;
-let contentWidth = 0;
+let width = 0;
+let speed = 2;
+let cycle = 0;
 
+/* ===== DATA ===== */
+let stops = [];
+let index = 0;
+let mode = 0; // 0 stops / 1 direction / 2 terminus
+
+function getText(){
+    if(stops.length === 0) return "AUCUN ARRET";
+
+    if(mode === 0){
+        let stop = stops[index];
+        index = (index + 1) % stops.length;
+        return "PROCHAIN ARRET : " + stop;
+    }
+
+    if(mode === 1){
+        return "DIRECTION : " + stops[0] + " -> " + stops[stops.length - 1];
+    }
+
+    return "TERMINUS : " + stops[stops.length - 1];
+}
+
+/* ===== LOOP ===== */
 function loop(){
     x -= speed;
 
-    if(contentWidth === 0){
-        contentWidth = screen.scrollWidth;
-    }
-
-    if(-x > contentWidth){
+    if(-x > width){
         x = screenWrapper.offsetWidth;
+        cycle++;
+
+        if(cycle >= 2){
+            cycle = 0;
+            renderText(getText());
+        }
     }
 
     screen.style.transform = `translateX(${x}px)`;
-
     requestAnimationFrame(loop);
 }
 
-/* UPDATE */
-function updateText(t){
-    renderText(t);
-
-    setTimeout(() => {
-        contentWidth = screen.scrollWidth;
-        x = screenWrapper.offsetWidth;
-    }, 50);
+/* ===== AUTO CHANGE MODE (5 MIN) ===== */
+function changeMode(){
+    mode = (mode + 1) % 3;
+    cycle = 0;
+    index = 0;
+    renderText(getText());
 }
 
-/* LOGIC */
-function show(){
-    if(stops.length === 0) return;
+setInterval(changeMode, 300000);
 
-    let stop = stops[index];
-
-    if(index === stops.length - 1 && state === 1){
-        updateText("TERMINUS : " + stop);
-    } else if(state === 0){
-        updateText("PROCHAIN ARRET : " + stop);
-    } else {
-        updateText("ARRET : " + stop);
-    }
-}
-
-/* NAV */
-function next(){
-    state = state === 0 ? 1 : (index < stops.length - 1 ? (index++, 0) : 1);
-    show();
-}
-
-function prev(){
-    state = state === 1 ? 0 : (index > 0 ? (index--, 1) : 0);
-    show();
-}
-
-/* ADD STOP */
+/* ===== ADD STOP ===== */
 function addStop(){
     let v = document.getElementById("stopInput").value;
-    if(v){
-        stops.push(v);
-        document.getElementById("stopInput").value = "";
-    }
+    if(v) stops.push(v);
 }
 
+/* ===== START ===== */
 function start(){
+    mode = 0;
+    cycle = 0;
     index = 0;
-    state = 0;
-    show();
+    renderText("INFORMATION : SYSTEME ACTIF");
 }
 
-/* SPEED */
-function speedUp(){
-    speed++;
-    document.getElementById("speedDisplay").innerText = "Vitesse: " + speed;
-}
-
-function speedDown(){
-    if(speed > 1) speed--;
-    document.getElementById("speedDisplay").innerText = "Vitesse: " + speed;
-}
-
-/* SIZE */
-function sizeUp(){
-    size++;
-    document.getElementById("sizeDisplay").innerText = "Taille: " + size;
-    show();
-}
-
-function sizeDown(){
-    if(size > 2) size--;
-    document.getElementById("sizeDisplay").innerText = "Taille: " + size;
-    show();
-}
-
-/* TIME */
-function showTime(){
-    let now = new Date();
-    updateText(now.toLocaleString("fr-FR"));
-
-    setTimeout(() => {
-        show();
-    }, 5000);
-}
-
-setInterval(showTime, 120000);
-
-/* START */
+/* ===== INIT ===== */
+renderText("INFORMATION : DEMARRAGE");
 loop();
 </script>
 

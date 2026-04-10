@@ -20,10 +20,13 @@ body {
     overflow: hidden;
     margin-top: 40px;
     position: relative;
+    white-space: nowrap;
 }
 
 #screen {
     position: absolute;
+    display: inline-block;
+    will-change: transform;
 }
 
 /* LED */
@@ -84,9 +87,8 @@ let stops = [];
 let index = 0;
 let state = 0;
 
-/* 🔥 CHURAFONT++ COMPLET */
+/* FONT LED */
 const font = {
-
 "A":["01110","10001","10001","11111","10001","10001","10001","00000","00000","00000"],
 "B":["11110","10001","11110","10001","10001","11110","00000","00000","00000","00000"],
 "C":["01110","10001","10000","10000","10001","01110","00000","00000","00000","00000"],
@@ -129,100 +131,156 @@ const font = {
 " ":["00000","00000","00000","00000","00000","00000","00000","00000","00000","00000"]
 };
 
-/* format */
+/* FORMAT */
 function formatText(t){
     return t.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase();
 }
 
-/* render */
+/* RENDER FIX */
 function renderText(text){
-    screen.innerHTML="";
-    let t=formatText(text);
+    screen.innerHTML = "";
 
-    for(let row=0; row<10; row++){
-        let line=document.createElement("div");
-        line.style.display="flex";
+    let t = formatText(text);
+
+    for(let row = 0; row < 10; row++){
+        let line = document.createElement("div");
+        line.style.display = "flex";
 
         for(let char of t){
-            let p=font[char]||font[" "];
+            let p = font[char] || font[" "];
 
-            for(let col=0; col<5; col++){
-                let dot=document.createElement("div");
-                dot.className="led";
-                dot.style.width=size+"px";
-                dot.style.height=size+"px";
-                dot.style.margin="1px";
+            for(let col = 0; col < 5; col++){
+                let dot = document.createElement("div");
+                dot.className = "led";
+                dot.style.width = size + "px";
+                dot.style.height = size + "px";
+                dot.style.margin = "1px";
 
-                if(p[row][col]==="1") dot.classList.add("on");
+                if(p[row][col] === "1") dot.classList.add("on");
 
                 line.appendChild(dot);
             }
 
-            let space=document.createElement("div");
-            space.style.width=size*2+"px";
+            let space = document.createElement("div");
+            space.style.width = (size * 3) + "px";
             line.appendChild(space);
         }
 
         screen.appendChild(line);
     }
+
+    calculateWidth();
+    currentOffset = screen.parentElement.offsetWidth;
 }
 
-/* défilement */
-let offset=0;
+/* SCROLL LOOP FIX */
+let currentOffset = 0;
+let textWidth = 0;
+
+function calculateWidth(){
+    textWidth = screen.scrollWidth;
+}
+
 function loop(){
-    offset-=speed;
-    screen.style.transform="translateX("+offset+"px)";
+    currentOffset -= speed;
+
+    if(Math.abs(currentOffset) > textWidth){
+        currentOffset = screen.parentElement.offsetWidth;
+    }
+
+    screen.style.transform = `translateX(${currentOffset}px)`;
+
     requestAnimationFrame(loop);
 }
 
+/* UPDATE TEXT */
 function updateText(t){
     renderText(t);
-    offset=screen.parentElement.offsetWidth;
+
+    setTimeout(() => {
+        calculateWidth();
+        currentOffset = screen.parentElement.offsetWidth;
+    }, 50);
 }
 
-/* logique */
+/* LOGIC */
 function show(){
-    if(stops.length===0)return;
-    let stop=stops[index];
+    if(stops.length === 0) return;
 
-    if(index===stops.length-1 && state===1){
-        updateText("TERMINUS : "+stop);
-    } else if(state===0){
-        updateText("PROCHAIN ARRET : "+stop);
+    let stop = stops[index];
+
+    if(index === stops.length - 1 && state === 1){
+        updateText("TERMINUS : " + stop);
+    } else if(state === 0){
+        updateText("PROCHAIN ARRET : " + stop);
     } else {
-        updateText("ARRET : "+stop);
+        updateText("ARRET : " + stop);
     }
 }
 
-/* navigation */
-function next(){ state=state===0?1:(index<stops.length-1?(index++,0):1); show(); }
-function prev(){ state=state===1?0:(index>0?(index--,1):0); show(); }
+/* NAV */
+function next(){
+    state = state === 0 ? 1 : (index < stops.length - 1 ? (index++, 0) : 1);
+    show();
+}
 
-/* ajout */
+function prev(){
+    state = state === 1 ? 0 : (index > 0 ? (index--, 1) : 0);
+    show();
+}
+
+/* ADD */
 function addStop(){
-    let v=document.getElementById("stopInput").value;
-    if(v){stops.push(v);document.getElementById("stopInput").value="";}
+    let v = document.getElementById("stopInput").value;
+    if(v){
+        stops.push(v);
+        document.getElementById("stopInput").value = "";
+    }
 }
 
-function start(){ index=0; state=0; show(); }
+function start(){
+    index = 0;
+    state = 0;
+    show();
+}
 
-/* vitesse */
-function speedUp(){speed++;document.getElementById("speedDisplay").innerText="Vitesse: "+speed;}
-function speedDown(){if(speed>1)speed--;document.getElementById("speedDisplay").innerText="Vitesse: "+speed;}
+/* SPEED */
+function speedUp(){
+    speed++;
+    document.getElementById("speedDisplay").innerText = "Vitesse: " + speed;
+}
 
-/* taille */
-function sizeUp(){size++;document.getElementById("sizeDisplay").innerText="Taille: "+size;show();}
-function sizeDown(){if(size>2)size--;document.getElementById("sizeDisplay").innerText="Taille: "+size;show();}
+function speedDown(){
+    if(speed > 1) speed--;
+    document.getElementById("speedDisplay").innerText = "Vitesse: " + speed;
+}
 
-/* heure */
+/* SIZE */
+function sizeUp(){
+    size++;
+    document.getElementById("sizeDisplay").innerText = "Taille: " + size;
+    show();
+}
+
+function sizeDown(){
+    if(size > 2) size--;
+    document.getElementById("sizeDisplay").innerText = "Taille: " + size;
+    show();
+}
+
+/* TIME DISPLAY */
 function showTime(){
-    let now=new Date();
+    let now = new Date();
     updateText(now.toLocaleString("fr-FR"));
-    setTimeout(show,5000);
+
+    setTimeout(() => {
+        show();
+    }, 5000);
 }
 
-setInterval(showTime,120000);
+setInterval(showTime, 120000);
 
+/* START LOOP */
 loop();
 </script>
 
